@@ -1,0 +1,764 @@
+# ============================================================
+# RED_SISMO_COLOMBIA.py
+# SISTEMA DE APOYO PARA EVALUACIÓN RÁPIDA POST-SISMO
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import io
+from datetime import datetime
+
+
+# ============================================================
+# CONFIGURACIÓN
+# ============================================================
+
+st.set_page_config(
+    page_title="Red Sismo Colombia",
+    page_icon="🏗️",
+    layout="wide"
+)
+
+
+# ============================================================
+# ESTILOS
+# ============================================================
+
+st.markdown("""
+<style>
+
+.main {
+    background-color: #f5f7fa;
+}
+
+.titulo {
+    font-size: 38px;
+    font-weight: 700;
+}
+
+.subtitulo {
+    font-size: 18px;
+    color: #666;
+}
+
+.tarjeta {
+    background-color: white;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+}
+
+.alerta {
+    padding: 15px;
+    border-radius: 10px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# TÍTULO
+# ============================================================
+
+st.markdown(
+    '<div class="titulo">🏗️ RED SISMO COLOMBIA</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="subtitulo">'
+    'Sistema ciudadano de apoyo para evaluación rápida, '
+    'priorización y coordinación de necesidades después de un sismo.'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+st.divider()
+
+
+# ============================================================
+# BASE DE DATOS TEMPORAL
+# ============================================================
+
+if "reportes" not in st.session_state:
+
+    st.session_state.reportes = []
+
+
+# ============================================================
+# MENÚ
+# ============================================================
+
+menu = st.sidebar.radio(
+    "MENÚ PRINCIPAL",
+    [
+        "🏠 Inicio",
+        "📝 Registrar reporte",
+        "📊 Centro de operaciones",
+        "🏗️ Evaluación rápida",
+        "📍 Mapa de reportes",
+        "📥 Exportar información"
+    ]
+)
+
+
+# ============================================================
+# INICIO
+# ============================================================
+
+if menu == "🏠 Inicio":
+
+    st.header("🇨🇴 Plataforma de apoyo post-sismo")
+
+    st.warning(
+        "Esta herramienta NO reemplaza la evaluación de un "
+        "ingeniero estructural, autoridad de gestión del riesgo, "
+        "Bomberos, Defensa Civil o equipo USAR."
+    )
+
+    st.markdown("""
+    ### ¿Qué busca solucionar?
+
+    La plataforma permite recopilar rápidamente información sobre:
+
+    - Personas que necesitan ayuda.
+    - Personas atrapadas.
+    - Viviendas afectadas.
+    - Edificaciones con daños visibles.
+    - Hospitales o centros de atención afectados.
+    - Vías bloqueadas.
+    - Servicios públicos afectados.
+    - Necesidades de maquinaria.
+    - Necesidades de agua, alimentos o medicamentos.
+    - Posibles riesgos estructurales.
+    - Recursos disponibles.
+
+    ### Como ingeniero mecánico puedes aportar especialmente en:
+
+    - Evaluación preliminar de maquinaria.
+    - Generadores eléctricos.
+    - Bombas.
+    - Compresores.
+    - Sistemas hidráulicos.
+    - Equipos de izaje.
+    - Vehículos y maquinaria pesada.
+    - Sistemas de emergencia.
+    - Logística de equipos.
+    - Priorización técnica de recursos.
+    """)
+
+    st.info(
+        "La información debe ser verificada antes de enviar "
+        "equipos o personas a una zona de riesgo."
+    )
+
+
+# ============================================================
+# REGISTRAR REPORTE
+# ============================================================
+
+elif menu == "📝 Registrar reporte":
+
+    st.header("📝 Registrar nueva situación")
+
+    st.write(
+        "Utiliza este formulario para registrar una situación "
+        "observada directamente o reportada por un ciudadano."
+    )
+
+    with st.form("formulario_reporte"):
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            municipio = st.text_input(
+                "Municipio"
+            )
+
+            departamento = st.text_input(
+                "Departamento",
+                value="Antioquia"
+            )
+
+            barrio = st.text_input(
+                "Barrio / Vereda"
+            )
+
+            direccion = st.text_input(
+                "Dirección o referencia"
+            )
+
+            latitud = st.number_input(
+                "Latitud",
+                value=0.0,
+                format="%.6f"
+            )
+
+            longitud = st.number_input(
+                "Longitud",
+                value=0.0,
+                format="%.6f"
+            )
+
+        with col2:
+
+            tipo_reporte = st.selectbox(
+                "Tipo de situación",
+                [
+                    "Edificación",
+                    "Vivienda",
+                    "Hospital",
+                    "Colegio",
+                    "Vía",
+                    "Puente",
+                    "Industria",
+                    "Maquinaria",
+                    "Servicio público",
+                    "Persona afectada",
+                    "Otro"
+                ]
+            )
+
+            personas_afectadas = st.number_input(
+                "Personas afectadas",
+                min_value=0,
+                step=1
+            )
+
+            personas_atrapadas = st.number_input(
+                "Personas posiblemente atrapadas",
+                min_value=0,
+                step=1
+            )
+
+            lesionados = st.number_input(
+                "Personas lesionadas",
+                min_value=0,
+                step=1
+            )
+
+            prioridad = st.selectbox(
+                "Prioridad preliminar",
+                [
+                    "🔴 CRÍTICA",
+                    "🟠 ALTA",
+                    "🟡 MEDIA",
+                    "🟢 BAJA"
+                ]
+            )
+
+        st.subheader("Descripción")
+
+        descripcion = st.text_area(
+            "Describa lo observado",
+            height=150
+        )
+
+        riesgos = st.multiselect(
+            "Riesgos observados",
+            [
+                "Colapso parcial",
+                "Colapso total",
+                "Grietas visibles",
+                "Elementos estructurales dañados",
+                "Caída de elementos",
+                "Fuga de gas",
+                "Incendio",
+                "Cableado eléctrico",
+                "Inundación",
+                "Derrame de combustible",
+                "Vía bloqueada",
+                "Maquinaria peligrosa",
+                "No identificado"
+            ]
+        )
+
+        recursos = st.multiselect(
+            "Recursos requeridos",
+            [
+                "Bomberos",
+                "USAR",
+                "Ambulancia",
+                "Ingeniero",
+                "Arquitecto",
+                "Maquinaria pesada",
+                "Grúa",
+                "Generador",
+                "Bomba de achique",
+                "Equipo hidráulico",
+                "Agua",
+                "Alimentos",
+                "Medicamentos",
+                "Combustible",
+                "Transporte",
+                "Iluminación"
+            ]
+        )
+
+        observador = st.text_input(
+            "Nombre de quien registra"
+        )
+
+        telefono = st.text_input(
+            "Teléfono de contacto"
+        )
+
+        enviar = st.form_submit_button(
+            "🚨 REGISTRAR REPORTE"
+        )
+
+        if enviar:
+
+            reporte = {
+
+                "Fecha": datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+                "Municipio": municipio,
+
+                "Departamento": departamento,
+
+                "Barrio": barrio,
+
+                "Direccion": direccion,
+
+                "Latitud": latitud,
+
+                "Longitud": longitud,
+
+                "Tipo": tipo_reporte,
+
+                "Personas afectadas":
+                    personas_afectadas,
+
+                "Personas atrapadas":
+                    personas_atrapadas,
+
+                "Lesionados":
+                    lesionados,
+
+                "Prioridad": prioridad,
+
+                "Descripcion": descripcion,
+
+                "Riesgos":
+                    ", ".join(riesgos),
+
+                "Recursos":
+                    ", ".join(recursos),
+
+                "Observador":
+                    observador,
+
+                "Telefono":
+                    telefono
+            }
+
+            st.session_state.reportes.append(
+                reporte
+            )
+
+            st.success(
+                "✅ Reporte registrado correctamente."
+            )
+
+
+# ============================================================
+# CENTRO DE OPERACIONES
+# ============================================================
+
+elif menu == "📊 Centro de operaciones":
+
+    st.header("📊 Centro de operaciones")
+
+    if len(st.session_state.reportes) == 0:
+
+        st.info(
+            "Todavía no existen reportes registrados."
+        )
+
+    else:
+
+        df = pd.DataFrame(
+            st.session_state.reportes
+        )
+
+        total = len(df)
+
+        criticos = len(
+            df[
+                df["Prioridad"] ==
+                "🔴 CRÍTICA"
+            ]
+        )
+
+        personas = df[
+            "Personas afectadas"
+        ].sum()
+
+        atrapadas = df[
+            "Personas atrapadas"
+        ].sum()
+
+        lesionados = df[
+            "Lesionados"
+        ].sum()
+
+        c1, c2, c3, c4, c5 = st.columns(5)
+
+        c1.metric(
+            "Reportes",
+            total
+        )
+
+        c2.metric(
+            "🔴 Críticos",
+            criticos
+        )
+
+        c3.metric(
+            "Personas afectadas",
+            personas
+        )
+
+        c4.metric(
+            "Personas atrapadas",
+            atrapadas
+        )
+
+        c5.metric(
+            "Lesionados",
+            lesionados
+        )
+
+        st.divider()
+
+        # --------------------------------------------
+        # REPORTES POR PRIORIDAD
+        # --------------------------------------------
+
+        prioridad_df = (
+            df["Prioridad"]
+            .value_counts()
+            .reset_index()
+        )
+
+        prioridad_df.columns = [
+            "Prioridad",
+            "Cantidad"
+        ]
+
+        fig = px.bar(
+            prioridad_df,
+            x="Prioridad",
+            y="Cantidad",
+            title="Reportes por prioridad"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # --------------------------------------------
+        # TIPOS DE INCIDENTE
+        # --------------------------------------------
+
+        tipo_df = (
+            df["Tipo"]
+            .value_counts()
+            .reset_index()
+        )
+
+        tipo_df.columns = [
+            "Tipo",
+            "Cantidad"
+        ]
+
+        fig2 = px.pie(
+            tipo_df,
+            names="Tipo",
+            values="Cantidad",
+            hole=0.4,
+            title="Tipos de situaciones reportadas"
+        )
+
+        st.plotly_chart(
+            fig2,
+            use_container_width=True
+        )
+
+        st.subheader(
+            "📋 Reportes registrados"
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+# ============================================================
+# EVALUACIÓN RÁPIDA
+# ============================================================
+
+elif menu == "🏗️ Evaluación rápida":
+
+    st.header(
+        "🏗️ Evaluación rápida de una edificación"
+    )
+
+    st.warning(
+        "Esta herramienta es de TRIAGE PRELIMINAR. "
+        "No certifica seguridad estructural ni habitabilidad."
+    )
+
+    st.subheader(
+        "1. Observación exterior"
+    )
+
+    exterior = st.multiselect(
+        "Seleccione las condiciones observadas",
+        [
+            "Sin daños visibles",
+            "Grietas menores",
+            "Grietas importantes",
+            "Desplazamiento visible",
+            "Inclinación de la edificación",
+            "Colapso parcial",
+            "Colapso total",
+            "Elementos desprendidos",
+            "Daño en columnas",
+            "Daño en vigas",
+            "Daño en muros",
+            "Daño en cubierta"
+        ]
+    )
+
+    st.subheader(
+        "2. Condiciones peligrosas"
+    )
+
+    peligros = st.multiselect(
+        "Seleccione los riesgos",
+        [
+            "Gas",
+            "Electricidad",
+            "Incendio",
+            "Agua",
+            "Combustible",
+            "Material suspendido",
+            "Estructura inestable",
+            "No identificado"
+        ]
+    )
+
+    st.subheader(
+        "3. Personas"
+    )
+
+    personas = st.number_input(
+        "Personas dentro o alrededor",
+        min_value=0,
+        step=1
+    )
+
+    atrapados = st.number_input(
+        "Personas atrapadas o posiblemente atrapadas",
+        min_value=0,
+        step=1
+    )
+
+    st.subheader(
+        "4. Resultado preliminar"
+    )
+
+    if (
+        atrapados > 0
+        or "Colapso total" in exterior
+        or "Colapso parcial" in exterior
+        or "Daño en columnas" in exterior
+        or "Inclinación de la edificación" in exterior
+        or "Estructura inestable" in peligros
+    ):
+
+        st.error(
+            "🔴 PRIORIDAD CRÍTICA — "
+            "No ingresar. Requiere evaluación y atención "
+            "de equipos especializados."
+        )
+
+    elif (
+        "Grietas importantes" in exterior
+        or "Desplazamiento visible" in exterior
+        or len(peligros) > 0
+    ):
+
+        st.warning(
+            "🟠 PRIORIDAD ALTA — "
+            "Restringir el acceso y solicitar evaluación "
+            "técnica."
+        )
+
+    elif "Grietas menores" in exterior:
+
+        st.info(
+            "🟡 PRIORIDAD MEDIA — "
+            "Registrar y solicitar revisión técnica."
+        )
+
+    else:
+
+        st.success(
+            "🟢 Sin señales críticas seleccionadas. "
+            "Continuar observación y seguir instrucciones "
+            "de las autoridades."
+        )
+
+
+# ============================================================
+# MAPA
+# ============================================================
+
+elif menu == "📍 Mapa de reportes":
+
+    st.header(
+        "📍 Mapa de situaciones reportadas"
+    )
+
+    if len(st.session_state.reportes) == 0:
+
+        st.info(
+            "No existen reportes con coordenadas."
+        )
+
+    else:
+
+        df = pd.DataFrame(
+            st.session_state.reportes
+        )
+
+        df_mapa = df[
+            (df["Latitud"] != 0)
+            &
+            (df["Longitud"] != 0)
+        ].copy()
+
+        if df_mapa.empty:
+
+            st.info(
+                "Todavía no existen reportes "
+                "con coordenadas válidas."
+            )
+
+        else:
+
+            st.map(
+                df_mapa[
+                    ["Latitud", "Longitud"]
+                ],
+                latitude="Latitud",
+                longitude="Longitud",
+                zoom=6
+            )
+
+            st.dataframe(
+                df_mapa,
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+# ============================================================
+# EXPORTAR
+# ============================================================
+
+elif menu == "📥 Exportar información":
+
+    st.header(
+        "📥 Exportar información"
+    )
+
+    if len(st.session_state.reportes) == 0:
+
+        st.info(
+            "No hay información para exportar."
+        )
+
+    else:
+
+        df = pd.DataFrame(
+            st.session_state.reportes
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # --------------------------------------------
+        # CSV
+        # --------------------------------------------
+
+        csv = df.to_csv(
+            index=False
+        ).encode("utf-8")
+
+        st.download_button(
+            "📥 Descargar CSV",
+            data=csv,
+            file_name="reportes_sismo_colombia.csv",
+            mime="text/csv"
+        )
+
+        # --------------------------------------------
+        # EXCEL
+        # --------------------------------------------
+
+        output = io.BytesIO()
+
+        with pd.ExcelWriter(
+            output,
+            engine="openpyxl"
+        ) as writer:
+
+            df.to_excel(
+                writer,
+                index=False,
+                sheet_name="Reportes"
+            )
+
+        output.seek(0)
+
+        st.download_button(
+            "📊 Descargar Excel",
+            data=output,
+            file_name="reportes_sismo_colombia.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+        )
+
+
+# ============================================================
+# PIE DE PÁGINA
+# ============================================================
+
+st.sidebar.divider()
+
+st.sidebar.info(
+    "RED SISMO COLOMBIA\n\n"
+    "Herramienta de apoyo para recopilación "
+    "y priorización de información."
+)
+
